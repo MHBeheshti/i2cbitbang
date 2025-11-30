@@ -1,39 +1,184 @@
 # i2cbitbang
-Recently I needed bit-bang i2c for creating SCCB communication which is slightly different from i2c as it has ACK bit as Don't care bit. Since I cound't find any lib for my needs, I wrote my own one in C++. It is based on i2c template from https://en.wikipedia.org/wiki/I%C2%B2C.
-This is bit-banging version of i2c for STM32F4 with possibility to create many i2c ports (limited by GPIO number). It supports clock stretching and different speeds according to standards. It does not support arbitration lost, but it can be easily added by yourself.
-It can be easily adopted to other STM32 microcontrollers. This lib uses Delay class which is based on DWT timer available in STMs.
 
-<p><b>Instruction</b></P>
+I2C bit-banging library for embedded microcontrollers. Originally developed for STM32F4, now ported to **LPC1768** with direct register access (no HAL dependencies).
 
-1. Edit <code>i2cbitbang_board.h</code> file and specify your i2c ports
+This is a bit-banging implementation of I2C master protocol with support for:
+- Multiple I2C port instances (limited by available GPIO pins)
+- Clock stretching with configurable timeout
+- Multiple bus speeds: 10kHz, 50kHz, 100kHz, 400kHz
+- SCCB protocol mode (for cameras like OV7670)
+- Open-drain GPIO configuration for proper I2C bus operation
 
-<p>a. set a total number of i2c ports in the define NUMBER_OF_I2CBB_INSTANCES</p>
-<p>b. modify entries in <code>i2cbbConfigTable</code> to specify GPIO port and GPIO pin number</p>
-<p>c. provide a name of each i2c instance, for example:</p>
-<code>
-<p>#define I2CBB_OLED	 0</p>
-<p>#define I2CBB_LSM	 1</p>
-</code>
+Based on the I2C bit-banging template from [Wikipedia I2C article](https://en.wikipedia.org/wiki/I%C2%B2C).
 
-<p>2. Use in the code</p>
-<p><code>i2cbitbang i2cport(instance, slaveAddress)</code>, for example: <code>i2cport(I2CBB_OLED, 0x3C)</code> for OLED display ssd1306.</p>
-<p>Now you can modify some options, e.g</p>
-<P><code>i2cport.setSpeed(SPEED_400k); </code> //there are four speeds available SPEED_10k, SPEED_50k, SPEED_100k, SPEED_400k(default)</P>
-<P><code>i2cport.setAckMode(ACK_CHECK);</code> //ACK_CHECK (default) is for normal I2C operation, ACK_IGNORE was provided for SCCB protocol e.g. for OV7670 camera</P>
-<P><code>i2cport.setI2CMode(MODE_I2C);</code>  //MODE_I2C (default) for normal I2C operation, MODE_SCCB is for SCCB protocol (please use with ACK_IGNORE option)</P>
+## Features
 
-<P>API is quite typical and can be easily understood by verifying class public components.</p>
-<P>E.g. to write to the i2c port: <code>i2cport.writeReg(reg, val);</code></p>
-<P>To read data into a register: <code>i2cport.readReg(reg, &val);</code> or <code>val = i2cport.readReg(reg);</code></p>
+- **No HAL dependency**: Uses direct register access for maximum portability
+- **LPC1768 support**: Full support for NXP LPC1768 ARM Cortex-M3 microcontroller
+- **SysTick-based timing**: Accurate microsecond delays using SysTick timer
+- **Open-drain GPIO**: Proper I2C bus configuration with internal pull-ups
+- **Multiple instances**: Support for multiple I2C buses on different GPIO pins
 
-<P>There is an <code>error</code> member of the class to which you can reach by <code>getError()</code>. The <code>error</code> member 
-is set to I2CBB_ERROR_NONE in the i2c_bus_init() private function in the i2cbitbang_driver.cpp file, hece to check communication error 
-you need to getError right after any read or write command.</p>
+## Hardware Requirements
 
-<p>This i2c protocol 
-<p>- does NOT support arbitration lost, but it can be easily implemented by yourself.</p>
-<P>- supports clock stretching with timeout set to <code>stretchTime_us = 1000; //in us</code> in the i2cbitbang constructor.
+- NXP LPC1768 microcontroller (or compatible LPC17xx series)
+- External pull-up resistors recommended (2.2kΩ - 10kΩ) for reliable operation
+- GPIO pins configured for open-drain mode
 
-Enjoy!.
-TB.
+## Compilation
 
+### Using ARM GCC Toolchain
+
+```bash
+arm-none-eabi-g++ -mcpu=cortex-m3 -mthumb -c -I. Delay.cpp i2cbitbang.cpp i2cbitbang_driver.cpp -o i2cbitbang.o
+```
+
+### Using Keil MDK / ARM Compiler
+
+Add all source files to your project and include the header directory in your include paths.
+
+### Using MBED
+
+This library is compatible with MBED OS. Add the files to your MBED project.
+
+## Configuration
+
+### 1. Edit `i2cbitbang_board.h`
+
+Configure your I2C port instances:
+
+```cpp
+// Define I2C instance names
+#define I2CBB_OLED   0
+#define I2CBB_SENSOR 1
+
+// Set total number of I2C instances
+#define NUMBER_OF_I2CBB_INSTANCES 2
+
+// Configure GPIO pins for each instance
+#define I2CBB_DECLARE_STRUCTURE() \
+    const i2cbbConfig_t i2cbbConfigTable[NUMBER_OF_I2CBB_INSTANCES] = \
+    { \
+        {LPC_GPIO0, GPIO_PIN_4,     /* SCL for OLED */ \
+         LPC_GPIO0, GPIO_PIN_5},    /* SDA for OLED */ \
+\
+        {LPC_GPIO1, GPIO_PIN_10,    /* SCL for SENSOR */ \
+         LPC_GPIO1, GPIO_PIN_11},   /* SDA for SENSOR */ \
+    }
+```
+
+### 2. Available GPIO Ports
+
+LPC1768 GPIO ports:
+- `LPC_GPIO0` - Port 0 (32 pins: P0.0 - P0.31)
+- `LPC_GPIO1` - Port 1 (32 pins: P1.0 - P1.31)
+- `LPC_GPIO2` - Port 2 (14 pins: P2.0 - P2.13)
+- `LPC_GPIO3` - Port 3 (2 pins: P3.25 - P3.26)
+- `LPC_GPIO4` - Port 4 (2 pins: P4.28 - P4.29)
+
+GPIO pin masks:
+- `GPIO_PIN_0` through `GPIO_PIN_31`
+
+## Usage Example
+
+```cpp
+#include "i2cbitbang.h"
+
+// Create I2C instance for OLED display at address 0x3C
+i2cbitbang oled(I2CBB_OLED, 0x3C);
+
+// Configure speed (optional, default is 400kHz)
+oled.setSpeed(SPEED_100k);
+
+// Write to a register
+oled.writeReg(0x00, 0xAE);  // Display OFF command
+
+// Read from a register
+uint8_t val = oled.readReg(0x00);
+
+// Write multiple bytes
+uint8_t data[] = {0x00, 0x10, 0x40};
+oled.writeData(0x00, data, 3);
+
+// Read multiple bytes
+uint8_t buffer[8];
+oled.readData(0x00, buffer, 8);
+
+// Check for errors
+if (oled.getError() != I2CBB_ERROR_NONE) {
+    // Handle error
+}
+```
+
+## Speed Settings
+
+Available speed options:
+- `SPEED_10k`  - 10 kHz (for long cables or noisy environments)
+- `SPEED_50k`  - 50 kHz
+- `SPEED_100k` - 100 kHz (Standard mode)
+- `SPEED_400k` - 400 kHz (Fast mode, default)
+
+```cpp
+i2cbitbang i2c(I2CBB_OLED, 0x3C);
+i2c.setSpeed(SPEED_100k);
+```
+
+## SCCB Mode (Camera Interface)
+
+For SCCB protocol (used by OV7670 and similar cameras):
+
+```cpp
+i2cbitbang cam(I2CBB_SCCB, 0x42);
+cam.setI2CMode(MODE_SCCB);
+cam.setAckMode(ACK_IGNORE);  // SCCB doesn't check ACK
+```
+
+## Error Handling
+
+After each I2C operation, check for errors:
+
+```cpp
+uint32_t err = i2c.getError();
+
+if (err & I2CBB_ERROR_NACK) {
+    // No acknowledge received
+}
+if (err & I2CBB_ERROR_STRETCH_TOUT) {
+    // Clock stretching timeout
+}
+if (err & I2CBB_ERROR_ARBITRATION) {
+    // Bus arbitration lost (not implemented)
+}
+```
+
+## File Structure
+
+- `lpc1768_gpio.h` - LPC1768 GPIO register definitions and macros
+- `Delay.h/cpp` - SysTick-based delay functions
+- `i2cbitbang_board.h` - Board-specific I2C pin configuration
+- `i2cbitbang.h/cpp` - I2C protocol implementation
+- `i2cbitbang_driver.cpp` - Hardware abstraction layer for GPIO
+
+## Timing Considerations
+
+The library uses SysTick timer for accurate timing. Ensure that:
+- System clock is correctly configured (default: 100 MHz)
+- SysTick is not being used by other critical timing functions
+- Interrupts don't cause excessive delays during I2C operations
+
+## Notes
+
+- This library does NOT support multi-master arbitration (yet)
+- Clock stretching is supported with configurable timeout (default: 1ms)
+- For critical applications, add external pull-up resistors (2.2kΩ - 4.7kΩ)
+- The `SystemCoreClock` value should be updated to match your actual clock configuration
+
+## License
+
+MIT License - See LICENSE file for details.
+
+## Author
+
+TB (Tata)
+
+Enjoy!

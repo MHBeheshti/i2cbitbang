@@ -3,6 +3,7 @@
  *
  *  Created on: 24 lis 2019
  *      Author: Tata
+ *  Modified for LPC1768: Uses LPC_GPIO_TypeDef
  */
 
 #ifndef SRC_I2CBITBANG_H_
@@ -27,9 +28,9 @@
 
 typedef struct
 {
-	GPIO_TypeDef* GPIOclk_port;
+	LPC_GPIO_TypeDef* GPIOclk_port;
 	uint32_t pinClk;
-	GPIO_TypeDef* GPIOdta_port;
+	LPC_GPIO_TypeDef* GPIOdta_port;
 	uint32_t pinDta;
 }i2cbbConfig_t;
 
