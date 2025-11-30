@@ -31,7 +31,7 @@ extern "C" {
 /* Pin Connect Block Base Address */
 #define LPC_PINCON_BASE       (0x4002C000UL)
 
-/* System Control Block Base Address */
+/* System Control Block Base Address - for power management and clock control */
 #define LPC_SC_BASE           (0x400FC000UL)
 
 /*
@@ -264,11 +264,16 @@ static inline uint32_t LPC_GPIO_GetPortNum(LPC_GPIO_TypeDef* port)
 
 /*
  * Helper function to get pin number from pin mask
+ * Returns the bit position (0-31) of the lowest set bit in pinMask
+ * Returns 0 if pinMask is 0 (invalid input - should not occur in normal usage)
  */
 static inline uint32_t LPC_GPIO_GetPinNum(uint32_t pinMask)
 {
+    if (pinMask == 0) {
+        return 0;  /* Invalid input, return 0 as safe default */
+    }
     uint32_t pinNum = 0;
-    while (pinMask > 1) {
+    while ((pinMask & 1) == 0) {
         pinMask >>= 1;
         pinNum++;
     }

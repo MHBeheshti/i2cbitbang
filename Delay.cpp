@@ -55,21 +55,22 @@ void Delay::hns(uint32_t hns) /* hundreds of nanosec delay */
 		
 		/* Get current SysTick value (counts down) */
 		uint32_t startVal = SysTick->VAL;
+		uint32_t loadVal = SysTick->LOAD;
 		uint32_t elapsed = 0;
 		
 		while (elapsed < ticksNeeded)
 		{
 			uint32_t currentVal = SysTick->VAL;
 			
-			/* SysTick counts down, handle wraparound */
+			/* SysTick counts down, handle wraparound using modular arithmetic */
 			if (currentVal <= startVal)
 			{
 				elapsed = startVal - currentVal;
 			}
 			else
 			{
-				/* Counter wrapped around */
-				elapsed = startVal + (SysTick->LOAD - currentVal + 1);
+				/* Counter wrapped around - use safe calculation */
+				elapsed = (startVal + 1) + (loadVal - currentVal);
 			}
 		}
 	}
@@ -83,21 +84,22 @@ void Delay::us(uint32_t us) /* microseconds */
 		
 		/* Get current SysTick value (counts down) */
 		uint32_t startVal = SysTick->VAL;
+		uint32_t loadVal = SysTick->LOAD;
 		uint32_t elapsed = 0;
 		
 		while (elapsed < ticksNeeded)
 		{
 			uint32_t currentVal = SysTick->VAL;
 			
-			/* SysTick counts down, handle wraparound */
+			/* SysTick counts down, handle wraparound using safe calculation */
 			if (currentVal <= startVal)
 			{
 				elapsed = startVal - currentVal;
 			}
 			else
 			{
-				/* Counter wrapped around */
-				elapsed = startVal + (SysTick->LOAD - currentVal + 1);
+				/* Counter wrapped around - use safe calculation */
+				elapsed = (startVal + 1) + (loadVal - currentVal);
 			}
 		}
 	}
